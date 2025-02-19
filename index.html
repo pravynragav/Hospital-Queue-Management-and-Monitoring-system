@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Patient Registration & Token Generation</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
+    .container { max-width: 600px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+    label { display: block; margin-top: 10px; }
+    input, select, textarea, button { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; }
+    button { background: #007BFF; color: #fff; border: none; cursor: pointer; }
+    .result { margin-top: 20px; padding: 10px; background: #e2f7e2; border: 1px solid #8fbc8f; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Patient Registration & Token Generation</h1>
+    <form id="registrationForm">
+      <label for="rfid">RFID:</label>
+      <input type="text" id="rfid" name="rfid" placeholder="Scan RFID or enter manually" required autofocus>
+      
+      <label for="name">Name:</label>
+      <input type="text" id="name" name="name" placeholder="Enter your name">
+      
+      <label for="age">Age:</label>
+      <input type="number" id="age" name="age" placeholder="Enter your age">
+      
+      <label for="gender">Gender:</label>
+      <select id="gender" name="gender">
+        <option value="">Select gender</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+        <option value="other">Other</option>
+      </select>
+      
+      <label for="contact">Contact:</label>
+      <input type="text" id="contact" name="contact" placeholder="Enter your contact">
+      
+      <label for="medicalHistory">Medical History:</label>
+      <textarea id="medicalHistory" name="medicalHistory" placeholder="Enter past medical history (if any)"></textarea>
+      
+      <label for="serviceType">Select Service:</label>
+      <select id="serviceType" name="serviceType" required>
+        <option value="">Select Service</option>
+        <option value="doctor">Doctor Consultation</option>
+        <option value="lab">Lab Tests</option>
+        <option value="billing">Billing</option>
+      </select>
+      
+      <button type="submit">Register & Generate Token</button>
+    </form>
+    <div id="result" class="result" style="display: none;"></div>
+  </div>
+  
+  <!-- Include Socket.io client library (via CDN for reliability) -->
+  <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+  <script>
+    // Connect to Socket.io server (replace with your server's IP and port if needed)
+    const socket = io("http://192.168.42.12:1337");
+
+    // Listen for RFID scan events
+    socket.on('rfidScanned', data => {
+      console.log('RFID Scanned event received:', data);
+      // Update the RFID input field with the scanned RFID value
+      document.getElementById('rfid').value = data.rfid;
+    });
+    
+    // Focus on RFID input on page load
+    window.onload = function() {
+      document.getElementById('rfid').focus();
+    };
+    
+    // Updated blur event: Only refocus if RFID field is empty
+    document.getElementById('rfid').addEventListener('blur', function() {
+      if (!this.value.trim()) {
+        setTimeout(() => { this.focus(); }, 100);
+      }
+    });
+    
+    // Handle form submission
+    document.getElementById('registrationForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const payload = {
+        rfid: document.getElementById('rfid').value,
+        name: document.getElementById('name').value,
+        age: parseInt(document.getElementById('age').value),
+        gender: document.getElementById('gender').value,
+        contact: document.getElementById('contact').value,
+        medicalHistory: document.getElementById('medicalHistory').value,
+        serviceType: document.getElementById('serviceType').value
+      };
+      try {
+        const response = await fetch('http://192.168.42.12:1337/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (response.ok) {
+          document.getElementById('result').style.display = 'block';
+          document.getElementById('result').innerHTML = `
+            <p>${data.message}</p>
+            <p><strong>Counter:</strong> ${data.counter}</p>
+            <p><strong>Token:</strong> ${data.token}</p>
+            <p><strong>Waiting Count:</strong> ${data.waitingCount} patient(s) ahead of you</p>
+            <p><strong>Patient Category:</strong> ${data.patientCategory}</p>
+          `;
+        } else {
+          alert('Error: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    });
+  </script>
+</body>
+</html>
